@@ -1,9 +1,6 @@
 import { OpenAI } from 'openai'
 import axios from 'axios'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 const systemPrompt = `Eres un experto en educación basado en la Nueva Escuela Mexicana (NEM). 
 Tu tarea es generar planeaciones didácticas completas, estructuradas y alineadas con los requerimientos educativos.
@@ -29,6 +26,16 @@ Sé específico y práctico en tus sugerencias.`
 
 // Función para generar con OpenAI
 async function generateWithOpenAI(userPrompt) {
+
+
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY no configurada')
+  }
+
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+
   const completion = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     messages: [
@@ -38,31 +45,40 @@ async function generateWithOpenAI(userPrompt) {
     temperature: 0.7,
     max_tokens: 2000,
   })
+
   return completion.choices[0].message.content
 }
 
 // Función para generar con NVIDIA NIM
+
 async function generateWithNVIDIA(userPrompt) {
   const response = await axios.post(
     `${process.env.NVIDIA_API_URL}/chat/completions`,
     {
-      model: 'meta/llama-2-70b-chat',
+      model: process.env.NVIDIA_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.3,
+      max_tokens: 4096,
+      stream: false,
+      chat_template_kwargs: {
+        enable_thinking: false
+      }
     },
     {
+      timeout: 60000,
       headers: {
         'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     }
   )
+
   return response.data.choices[0].message.content
 }
+
 
 // Función fallback para cuando ningún modelo está disponible
 function getFallbackResponse(materia, grado) {
@@ -134,36 +150,63 @@ Devuelve SOLO JSON válido sin explicaciones adicionales.`
 
   try {
     let aiResponse
-    
-    // Determinar qué proveedor usar
-    const selectedProvider = provider || 'openai'
-    
-    if (selectedProvider === 'nvidia' && process.env.NVIDIA_API_KEY) {
-      aiResponse = await generateWithNVIDIA(userPrompt)
-    } else if (selectedProvider === 'openai' && process.env.OPENAI_API_KEY) {
-      aiResponse = await generateWithOpenAI(userPrompt)
-    } else {
-      // Si no hay claves configuradas o provider inválido
-      console.warn(`Provider ${selectedProvider} no disponible, usando fallback`)
-      return res.status(200).json(getFallbackResponse(materia, grado))
+
+    const selectedProvider = provider || 'nvidia'
+
+    if (!['nvidia', 'openai'].includes(selectedProvider)) {
+      return res.status(400).json({
+        error: 'Proveedor de IA no válido'
+      })
     }
 
-    // Parsear respuesta JSON
+    if (selectedProvider === 'nvidia') {
+      if (!process.env.NVIDIA_API_KEY ||
+        !process.env.NVIDIA_API_URL ||
+        !process.env.NVIDIA_MODEL) {
+        return res.status(503).json({
+          error: 'NVIDIA NIM no está configurado'
+        })
+      }
+
+      aiResponse = await generateWithNVIDIA(userPrompt)
+    } else {
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(503).json({
+          error: 'OpenAI no está configurado'
+        })
+      }
+
+      aiResponse = await generateWithOpenAI(userPrompt)
+    }
+
     let parsedResponse
+
     try {
       parsedResponse = JSON.parse(aiResponse)
-    } catch (parseError) {
-      console.warn('Error parsing AI response, usando fallback', parseError)
-      parsedResponse = getFallbackResponse(materia, grado)
+    } catch {
+      console.warn('Respuesta JSON inválida', {
+        provider: selectedProvider
+      })
+
+      return res.status(502).json({
+        error: 'El modelo devolvió una respuesta inválida',
+        provider: selectedProvider
+      })
     }
 
-    res.status(200).json(parsedResponse)
+    return res.status(200).json(parsedResponse)
   } catch (error) {
-    console.error(`Error generando con ${provider}:`, error)
-    res.status(500).json({ 
+    const selectedProvider = provider || 'nvidia'
+
+    console.error('Error al generar planeación', {
+      provider: selectedProvider,
+      code: error.code || 'UNKNOWN_ERROR',
+      status: error.response?.status || error.status || null
+    })
+
+    return res.status(500).json({
       error: 'Error al generar planeación',
-      details: error.message,
-      provider: provider || 'openai'
+      provider: selectedProvider
     })
   }
 }
