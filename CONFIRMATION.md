@@ -55,7 +55,7 @@ API Endpoint: https://integrate.api.nvidia.com/v1
 **Configuración requerida en `.env.local`:**
 
 ```env
-NVIDIA_API_KEY=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
+NVIDIA_API_KEY=<API-KEY>
 NVIDIA_API_URL=https://integrate.api.nvidia.com/v1
 ```
 
@@ -105,7 +105,7 @@ cp .env.local.example .env.local
 
 Luego edita `.env.local` y agrega:
 ```env
-NVIDIA_API_KEY=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
+NVIDIA_API_KEY=<API_KEY>
 NVIDIA_API_URL=https://integrate.api.nvidia.com/v1
 ```
 

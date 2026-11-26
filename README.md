@@ -34,7 +34,7 @@ Obtén tu clave en: https://platform.openai.com/account/api-keys
 
 **Opción B: NVIDIA NIM**
 ```
-NVIDIA_API_KEY=nvapi-your-actual-api-key-here
+NVIDIA_API_KEY=<API-KEY>
 NVIDIA_API_URL=https://integrate.api.nvidia.com/v1
 ```
 

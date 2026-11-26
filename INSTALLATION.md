@@ -24,7 +24,7 @@ cp .env.local.example .env.local
 
 Abre `.env.local` y añade:
 ```
-NVIDIA_API_KEY=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
+NVIDIA_API_KEY=<API_KEY>
 NVIDIA_API_URL=https://integrate.api.nvidia.com/v1
 ```
 
@@ -46,7 +46,7 @@ Obtén una clave de: https://platform.openai.com/account/api-keys
 
 Configura ambas claves y selecciona cuál usar en el formulario:
 ```
-NVIDIA_API_KEY=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
+NVIDIA_API_KEY=<API-KEY>
 NVIDIA_API_URL=https://integrate.api.nvidia.com/v1
 OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
